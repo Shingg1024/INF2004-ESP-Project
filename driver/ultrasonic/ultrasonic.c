@@ -6,7 +6,7 @@
 #define TRIG_PIN 1
 #define ECHO_PIN 3
 
-int timeout = 32000;
+int timeout = 26000;
 
 void setupUltrasonicPins()
 {
