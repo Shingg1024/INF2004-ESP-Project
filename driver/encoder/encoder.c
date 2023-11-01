@@ -15,7 +15,6 @@ static uint32_t leftNotchCount = 0;
 static uint32_t rightNotchCount = 0;
 static absolute_time_t lastNotchTime;
 static bool isCountingPulse = false;
-static const int dutyCycle = 1;
 
 // Wheel characteristics
 static const float wheelCircumferenceMeters = 0.204; // Replace with your wheel's circumference
@@ -24,7 +23,12 @@ static float leftDistanceMeters = 0.0;
 static float rightDistanceMeters = 0.0;
 static float totalDistanceMeters = 0.0;
 
-
+static const char *gpio_irq_str[] = {
+    "LEVEL_LOW",  // 0x1
+    "LEVEL_HIGH", // 0x2
+    "EDGE_FALL",  // 0x4
+    "EDGE_RISE"   // 0x8
+};
 void gpio_event_string(char *buf, uint32_t events) {
     for (uint i = 0; i < 4; i++) {
         uint mask = (1 << i);
@@ -46,18 +50,13 @@ void gpio_event_string(char *buf, uint32_t events) {
     *buf++ = '\0';
 }
 
-static const char *gpio_irq_str[] = {
-    "LEVEL_LOW",  // 0x1
-    "LEVEL_HIGH", // 0x2
-    "EDGE_FALL",  // 0x4
-    "EDGE_RISE"   // 0x8
-};
+
 
 // Wheel encoder GPIO interrupt
 void gpioCallback(uint gpio, uint32_t events)
 {
     // Put the GPIO event(s) that just happened into eventStr
-    gpioEventString(eventStr, events);
+    gpio_event_string(eventStr, events);
 
     if (gpio == L_IR_SENSOR_PIN)
     {
@@ -155,6 +154,8 @@ int main()
     gpio_set_irq_enabled_with_callback(R_IR_SENSOR_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpioCallback);
 
     while (1){
+            //print output every second
+            sleep_ms(1000);
             printf("Total Distance traveled: %.2f", totalDistanceMeters);
     }
 
