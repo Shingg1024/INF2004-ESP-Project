@@ -56,16 +56,19 @@ int main()
                     whiteEndTime = time_us_32();
                     whiteWidth = whiteEndTime - whiteStartTime;
                     printf("White Width: %lu us\n", whiteWidth);
-                    // if (whiteWidth > 200000)
-                    // {
-                    //     printf("Idle mode\n");
-                    //     totalBlackWidth = 0;
-                    //     totalWhiteWidth = 0;
-                    //     overallCount = 0;
-                    // }
-                    totalWhiteWidth += whiteWidth;
-                    overallCount++;
-                    printf("Count: %d\n", overallCount);
+                    if (whiteWidth > 200000)
+                    {
+                        printf("Idle mode\n");
+                        totalBlackWidth = 0;
+                        totalWhiteWidth = 0;
+                        overallCount = 0;
+                    }
+                    else
+                    {
+                        totalWhiteWidth += whiteWidth;
+                        overallCount++;
+                        printf("Count: %d\n", overallCount);
+                    }
                 }
                 blackStartTime = time_us_32();
                 isBlackDetected = true;
