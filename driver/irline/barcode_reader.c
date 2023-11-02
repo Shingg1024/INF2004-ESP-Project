@@ -55,20 +55,11 @@ int main()
                 {
                     whiteEndTime = time_us_32();
                     whiteWidth = whiteEndTime - whiteStartTime;
-                    printf("White Width: %lu us\n", whiteWidth);
-                    if (whiteWidth > 200000)
-                    {
-                        printf("Idle mode\n");
-                        totalBlackWidth = 0;
-                        totalWhiteWidth = 0;
-                        overallCount = 0;
-                    }
-                    else
-                    {
-                        totalWhiteWidth += whiteWidth;
-                        overallCount++;
-                        printf("Count: %d\n", overallCount);
-                    }
+                    // printf("White Width: %lu us\n", whiteWidth);
+
+                    totalWhiteWidth += whiteWidth;
+                    overallCount++;
+                    // printf("Count: %d\n", overallCount);
                 }
                 blackStartTime = time_us_32();
                 isBlackDetected = true;
@@ -82,15 +73,23 @@ int main()
             {
                 blackEndTime = time_us_32();
                 blackWidth = blackEndTime - blackStartTime;
-                printf("Black Width: %lu us\n", blackWidth);
+                // printf("Black Width: %lu us\n", blackWidth);
+                if (blackWidth > 100000)
+                {
+                    printf("Barcode is thick\n");
+                }
+                else
+                {
+                    printf("Barcode is thin\n");
+                }
                 totalBlackWidth += blackWidth;
                 overallCount++;
-                printf("Count: %d\n", overallCount);
+                // printf("Count: %d\n", overallCount);
                 if (overallCount >= 29)
                 {
-                    printf("Total Black Width: %lu us\n", totalBlackWidth);
-                    printf("Total White Width: %lu us\n", totalWhiteWidth);
-                    printf("Total Overall Width: %lu us\n", (totalBlackWidth + totalWhiteWidth));
+                    // printf("Total Black Width: %lu us\n", totalBlackWidth);
+                    // printf("Total White Width: %lu us\n", totalWhiteWidth);
+                    // printf("Total Overall Width: %lu us\n", (totalBlackWidth + totalWhiteWidth));
 
                     totalBlackWidth = 0;
                     totalWhiteWidth = 0;
