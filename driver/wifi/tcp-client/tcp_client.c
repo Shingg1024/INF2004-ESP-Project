@@ -3,8 +3,8 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
-#define IP_ADDRESS "192.168.1.106"
-#define PORT 4242
+// #define IP_ADDRESS "192.168.1.106"
+// #define PORT 4242
 #define BUF_SIZE 2048
 
 int main() {
@@ -12,6 +12,8 @@ int main() {
     SOCKET client_socket;
     struct sockaddr_in server;
     char server_message[BUF_SIZE];
+    char IP_ADDRESS[16];
+    char PORT[6];
     char* client_message;
 
     // Initialize Winsock
@@ -25,6 +27,12 @@ int main() {
         printf("Could not create socket : %d", WSAGetLastError());
         return 1;
     }
+
+    // Get server IP address and port number
+    printf("Enter server IP address: ");
+    gets(IP_ADDRESS);
+    printf("Enter server port number: ");
+    gets(PORT);
 
     // Server configuration
     server.sin_addr.s_addr = inet_addr(IP_ADDRESS); // Change this to the server IP address
