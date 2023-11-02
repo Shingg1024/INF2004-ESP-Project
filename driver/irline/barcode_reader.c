@@ -4,23 +4,21 @@
 #include "hardware/gpio.h"
 #include "hardware/adc.h"
 
-char binaryString[49];
+bool isBlackDetected = false;
+bool isWhiteDetected = false;
 
-bool isLineDetected = false;
-bool isGapDetected = false;
+uint32_t blackStartTime = 0;
+uint32_t blackEndTime = 0;
+uint32_t whiteStartTime = 0;
+uint32_t whiteEndTime = 0;
+uint32_t whiteWidth = 0;
+uint32_t blackWidth = 0;
 
-uint32_t startTime = 0;
-uint32_t endTime = 0;
-uint32_t gapStart = 0;
-uint32_t gapEnd = 0;
-uint32_t gapDetection = 0;
-uint32_t pulseWidth = 0;
+uint32_t totalBlackWidth = 0;
+uint32_t totalWhiteWidth = 0;
+// uint32_t totalOverallWidth = 0;
 
-uint32_t totalPulseWidth = 0;
-uint32_t totalGapWidth = 0;
-uint32_t totalOverall = 0;
-
-int pulseCount = 0;
+int overallCount = 0;
 
 // Function to read and convert ADC value
 float readAndConvertADC()
@@ -51,42 +49,42 @@ int main()
         if (readAndConvertADC() > 1.5)
         {
             // Detect black
-            if (!isLineDetected)
+            if (!isBlackDetected)
             {
-                if (isGapDetected)
+                if (isWhiteDetected)
                 {
-                    gapEnd = time_us_32();
-                    gapDetection = gapEnd - gapStart;
-                    printf("Gap Width: %lu us\n", gapDetection);
-                    totalGapWidth += gapDetection;
-                    pulseCount++;
-                    printf("Count: %d\n", pulseCount);
+                    whiteEndTime = time_us_32();
+                    whiteWidth = whiteEndTime - whiteStartTime;
+                    printf("White Width: %lu us\n", whiteWidth);
+                    totalWhiteWidth += whiteWidth;
+                    overallCount++;
+                    printf("Count: %d\n", overallCount);
                 }
-                startTime = time_us_32();
-                isLineDetected = true;
-                isGapDetected = false;
+                blackStartTime = time_us_32();
+                isBlackDetected = true;
+                isWhiteDetected = false;
             }
         }
         else
         {
             // Detect white
-            if (isLineDetected)
+            if (isBlackDetected)
             {
-                endTime = time_us_32();
-                pulseWidth = endTime - startTime;
-                printf("Pulse Width: %lu us\n", pulseWidth);
-                totalPulseWidth += pulseWidth;
-                pulseCount++;
-                printf("Count: %d\n", pulseCount);
-                if (pulseCount == 29)
+                blackEndTime = time_us_32();
+                blackWidth = blackEndTime - blackStartTime;
+                printf("Black Width: %lu us\n", blackWidth);
+                totalBlackWidth += blackWidth;
+                overallCount++;
+                printf("Count: %d\n", overallCount);
+                if (overallCount == 29)
                 {
-                    printf("Total Pulse Width: %lu us\n", totalPulseWidth);
-                    printf("Total Gap Width: %lu us\n", totalGapWidth);
-                    printf("Total Width: %lu us\n",(totalPulseWidth+totalGapWidth));
+                    printf("Total Black Width: %lu us\n", totalBlackWidth);
+                    printf("Total White Width: %lu us\n", totalWhiteWidth);
+                    printf("Total Overall Width: %lu us\n",(totalBlackWidth+totalWhiteWidth));
                 }
-                isLineDetected = false;
-                isGapDetected = true;
-                gapStart = time_us_32();
+                isBlackDetected = false;
+                isWhiteDetected = true;
+                whiteStartTime = time_us_32();
             }
         }
         sleep_ms(10);
