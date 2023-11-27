@@ -11,12 +11,6 @@
 
 int test = 0;
 
-bool isLeftBlack = false;
-bool isLeftWhite = false;
-bool isRightBlack = false;
-bool isRightWhite = false;
-bool testChecker = false;
-
 // Pin Definitions
 #define L_IR_SENSOR_PIN 2 // Left wheel encoder
 #define R_IR_SENSOR_PIN 5 // Right wheel encoder
@@ -79,6 +73,12 @@ int j_counter = 0;
 float testAvg = 0;
 bool isReverse = false;
 
+bool isLeftBlack = false;
+bool isLeftWhite = false;
+bool isRightBlack = false;
+bool isRightWhite = false;
+bool testChecker = false;
+
 // code from ultrasonic
 int timeout = 26000;
 volatile bool pulse_started = false;
@@ -88,7 +88,7 @@ absolute_time_t startTime;
 absolute_time_t endTime;
 
 // Function to configure and start PWM for the motor
-void initializePwmForMotor(int dutyCycle)
+void initializePwmForMotor(int speedA, int speedB)
 {
     // Set up PWM for the motors
     gpio_set_function(LEFT_MOTOR_PWM, GPIO_FUNC_PWM);
@@ -101,13 +101,13 @@ void initializePwmForMotor(int dutyCycle)
     // Configure PWM settings as needed for your motors
     pwm_set_clkdiv(sliceNum1, 100);
     pwm_set_wrap(sliceNum1, 12500);
-    pwm_set_chan_level(sliceNum1, PWM_CHAN_A, 7000);
-    pwm_set_chan_level(sliceNum1, PWM_CHAN_B, 7000);
+    pwm_set_chan_level(sliceNum1, PWM_CHAN_A, speedA);
+    pwm_set_chan_level(sliceNum1, PWM_CHAN_B, speedA);
 
     pwm_set_clkdiv(sliceNum2, 100);
     pwm_set_wrap(sliceNum2, 12500);
-    pwm_set_chan_level(sliceNum2, PWM_CHAN_A, 7000);
-    pwm_set_chan_level(sliceNum2, PWM_CHAN_B, 7000);
+    pwm_set_chan_level(sliceNum2, PWM_CHAN_A, speedB);
+    pwm_set_chan_level(sliceNum2, PWM_CHAN_B, speedB);
 
     // Set the PWM running
     pwm_set_enabled(sliceNum1, true);
@@ -192,11 +192,12 @@ float readAndConvertADC()
     return result * conversion_factor;
 }
 
-// Callback function for Barcode events
+// Callback function interrupt
 void gpioCallback(uint gpio, uint32_t events)
 {
     gpio_event_string(event_str, events);
 
+    // when gpio detect ultrasonic as interrupt
     if (gpio == ECHO_PIN)
     {
         if (gpio_get(ECHO_PIN) == 1)
@@ -204,15 +205,14 @@ void gpioCallback(uint gpio, uint32_t events)
             startTime = get_absolute_time();
             pulse_started = true;
             timeout_occurred = false; // Reset timeout flag
-        }
-        else
-        {
+        } else {
             endTime = get_absolute_time();
             pulse_started = false;
             width = absolute_time_diff_us(startTime, endTime);
         }
     }
 
+    // when gpio detect motor as interrupt
     if (gpio == L_IR_SENSOR_PIN || gpio == R_IR_SENSOR_PIN)
     {
         if (events & GPIO_IRQ_EDGE_RISE)
@@ -253,6 +253,7 @@ void gpioCallback(uint gpio, uint32_t events)
         }
     }
 
+    // when gpio detect motor as ir line sensor as barcode
     if (gpio == barcodePIN)
     {
         if (events & GPIO_IRQ_EDGE_RISE)
@@ -265,6 +266,7 @@ void gpioCallback(uint gpio, uint32_t events)
         }
     }
 
+    // when gpio detect motor as ir line sensor as left side
     if (gpio == L_IR_LINE_SENSOR)
     {
         if (events & GPIO_IRQ_EDGE_RISE)
@@ -276,6 +278,7 @@ void gpioCallback(uint gpio, uint32_t events)
             isLeftWhite = true;
         }
     }
+    // when gpio detect motor as ir line sensor as right side
     if (gpio == R_IR_LINE_SENSOR)
     {
         if (events & GPIO_IRQ_EDGE_RISE)
@@ -318,26 +321,23 @@ void initHardware()
     gpio_set_dir(TRIG_PIN, GPIO_OUT);
     gpio_set_dir(ECHO_PIN, GPIO_IN);
 
-    // Added interrupts for efficiency
-    gpio_set_irq_enabled_with_callback(ECHO_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpioCallback);
-
     // init interrupt
+    gpio_set_irq_enabled_with_callback(ECHO_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpioCallback);
     gpio_set_irq_enabled_with_callback(L_IR_SENSOR_PIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpioCallback);
-
     gpio_set_irq_enabled_with_callback(barcodePIN, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpioCallback);
     gpio_set_irq_enabled_with_callback(L_IR_LINE_SENSOR, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpioCallback);
     gpio_set_irq_enabled_with_callback(R_IR_LINE_SENSOR, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, &gpioCallback);
 }
 
+
+// checking for barcode is reverse or not.
 void checkReverse(int width[], int count)
 {
     for (int i = 0; i < count; i++)
     {
         testAvg += width[i];
     }
-    // printf("Total: %.1f\n", testAvg);
     testAvg /= count;
-    // printf("Avg : %.1f\n", testAvg);
 
     if (width[2] > testAvg)
     {
@@ -345,6 +345,7 @@ void checkReverse(int width[], int count)
     }
 }
 
+// calculate average for moving 
 float getTotalAverage(int width[], int count)
 {
     float avg = 0;
@@ -358,6 +359,7 @@ float getTotalAverage(int width[], int count)
     return avg;
 }
 
+// reset everything for the barcode when it touch white space more than 1 second.
 void resetEverything()
 {
     isRise = false;
@@ -376,6 +378,7 @@ void resetEverything()
     memset(binaryTest, '\0', sizeof(binaryTest));
 }
 
+// return the distance sensing from the ultrasonic
 float measure_distance()
 {
     gpio_put(TRIG_PIN, 1);
@@ -434,10 +437,11 @@ float calculate_heading(int16_t x, int16_t y)
 
 int main()
 {
+    // init all hardware for GPIO
     initHardware();
 
     // Initialize PWM for the motors
-    initializePwmForMotor(dutyCycle);
+    initializePwmForMotor(8000,10000);
 
     // Dictionary for encoding characters
     static struct KeyValuePair dictionary[] = {
@@ -489,55 +493,38 @@ int main()
     // Wait forever
     while (1)
     {
+        // when left side ir line sensor detect black
         if (isLeftBlack)
         {
-            // moveRight();
-            // sleep_ms(1000);
-            // stopMotor();
-            // sleep_ms(1000);
-            // stopMotor();
+            initializePwmForMotor(6000, 7500);
             setMotorDirection(1, 0, 0, 0);
-            sleep_ms(500);
+            sleep_ms(400);
             isLeftBlack = false;
         }
-
+        // when left side ir line sensor detect white
         if (isLeftWhite)
         {
+            initializePwmForMotor(6000, 7500);
             moveForward();
             isLeftWhite = false;
         }
-
+        // when right side ir line sensor detect black
         if (isRightBlack)
         {
-            // moveRight();
-            // sleep_ms(1000);
-            // stopMotor();
-            // sleep_ms(1000);
-            // stopMotor();
-            // Find out which PWM slices are connected to the GPIO pins
-            uint sliceNum1 = pwm_gpio_to_slice_num(LEFT_MOTOR_PWM);
-            uint sliceNum2 = pwm_gpio_to_slice_num(RIGHT_MOTOR_PWM);
-
-            // Configure PWM settings as needed for your motors
-            pwm_set_clkdiv(sliceNum1, 100);
-            pwm_set_wrap(sliceNum1, 12500);
-            pwm_set_chan_level(sliceNum1, PWM_CHAN_A, 7500);
-            pwm_set_chan_level(sliceNum1, PWM_CHAN_B, 7500);
-
-            pwm_set_clkdiv(sliceNum2, 100);
-            pwm_set_wrap(sliceNum2, 12500);
-            pwm_set_chan_level(sliceNum2, PWM_CHAN_A, 7500);
-            pwm_set_chan_level(sliceNum2, PWM_CHAN_B, 7500);
+            initializePwmForMotor(6000, 7500);
             setMotorDirection(0, 0, 1, 0);
-            sleep_ms(500);
+            sleep_ms(400);
             isRightBlack = false;
         }
-
+        // when right side ir line sensor detect white
         if (isRightWhite)
         {
+            initializePwmForMotor(6000, 7500);
             moveForward();
             isRightWhite = false;
         }
+
+        // method to use ultrasonic sense the distance and reverse it when it hit the condition.
         // float distance = measure_distance();
         // printf("Distance: %.2f cm\n", distance);
 
@@ -585,18 +572,20 @@ int main()
 
         // moveForward();
 
-        // motor part.
         // printf("Total Distance traveled: %.2f", totalDistanceMeters);
-        // Edge Rise is detected
+       
+        // Barcode IR Line Sensor Edge Rise is detected
         if (isRise)
         {
+            // when white space is found between the barcode
             if (isGap)
             {
                 // end the time when detect black.
                 endTimeWhite = to_ms_since_boot(get_absolute_time());
                 // getting the gap width value
                 whiteWidth = endTimeWhite - startTimeWhite;
-
+                // if it reach 0.1/1 second mean it has chance is not a barcode
+                // if true reset all barcode related to default state
                 if (whiteWidth > 1000)
                 {
                     printf("Too long, reset all to default\n");
@@ -622,6 +611,7 @@ int main()
             // Set the rise to false once done
             isRise = false;
         }
+        // Barcode IR Line Sensor Edge Fail is detected
         if (isFail)
         {
             // Stop the timer when detect white
@@ -637,6 +627,7 @@ int main()
             // display the counter output (Debug purpose)
             printf("Count: %d\n", count);
 
+            // when count reach 9 can check the barcode is reverse or not.
             if (count == 9)
             {
                 checkReverse(binaryTest, count);
@@ -650,25 +641,8 @@ int main()
 
                 if (!isReverse)
                 {
-                    // // for loop to add all the value into 'totalAvg'
-                    // for (size_t i = 0; i < count; i++)
-                    // {
-                    //     totalAvg += binaryTest[i];
-                    // }
-                    // // Display the total of the array value first before doing the avgerage (Debug Purpose)
-                    // printf("Total: %.1f\n", totalAvg);
-                    // // step to do average
-                    // totalAvg = totalAvg / count;
-                    // // Display the average value (Debug Purpose)
-                    // printf("Avg: %.1f\n", totalAvg);
-
+                    // getting the average value of all 29 black/white width reading.
                     totalAvg = getTotalAverage(binaryTest, count);
-
-                    // for loop to get all the value (Debug Purpose)
-                    // for (size_t i = 0; i < count; i++)
-                    // {
-                    //     printf("%d\n", binaryTest[i]);
-                    // }
 
                     // hard coded first and last to 0 as thin
                     binaryTest[0] = 0;
@@ -767,12 +741,19 @@ int main()
                     binaryTest[0] = 0;
                     binaryString[0] = '0';
                     j_counter++;
+
+                    // for loop from the width array
                     for (int i = 0; i < count; i++)
                     {
+                        // checking the width value is greater than total avg is true
+                        // if true mean is thick
                         if (binaryTest[i] > totalAvg)
                         {
+                            // checking is black or white
+                            // %2 == 0 mean is black
                             if (i % 2 == 0)
                             {
+                                // hard coded for loop 3 time to add 3 '1' to new char array
                                 for (int j = 0; j < 3; j++)
                                 {
                                     binaryString[j_counter] = '1';
@@ -781,6 +762,7 @@ int main()
                             }
                             else if (i % 2 == 1)
                             {
+                                // hard coded for loop 3 time to add 3 '0' to new char array
                                 for (int j = 0; j < 3; j++)
                                 {
                                     binaryString[j_counter] = '0';
@@ -790,13 +772,17 @@ int main()
                         }
                         else
                         {
+                            // checking is black or white
+                            // %2 == 0 mean is black
                             if (i % 2 == 0)
                             {
+                                // add '1' to new char array
                                 binaryString[j_counter] = '1';
                                 j_counter++;
                             }
                             else if (i % 2 == 1)
                             {
+                                // add '0' to new char array
                                 binaryString[j_counter] = '0';
                                 j_counter++;
                             }
